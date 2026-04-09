@@ -6,7 +6,7 @@
           fontSize: "0.65rem", letterSpacing: "0.08em",
           textTransform: "uppercase", marginBottom: "1rem",
         }}>
-          {/* GANTI tulisan "logo-saya.png" dengan nama file aslimu */}
+          {/* GANTI tulisan "logoku.png" dengan nama file aslimu */}
           <img 
             src="/logoku.png" 
             alt="Logo Chek & Recheck"
