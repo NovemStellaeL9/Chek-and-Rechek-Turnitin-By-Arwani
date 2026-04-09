@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #0A0A0F;
+  --ink-soft: #1C1C2E;
+  --surface: #F4F3EE;
+  --surface-warm: #EAE8E0;
+  --accent: #C8F53D;
+  --accent-dark: #A8D420;
+  --accent-glow: rgba(200,245,61,0.18);
+  --muted: #6B6B7B;
+  --border: rgba(10,10,15,0.12);
+  --border-strong: rgba(10,10,15,0.25);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+}
+
+.noise-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: .6; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+@keyframes scan-line {
+  0%   { top: 0%; }
+  100% { top: 100%; }
+}
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes badge-pop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.anim-up   { animation: float-up 0.65s cubic-bezier(.22,1,.36,1) both; }
+.anim-up-2 { animation: float-up 0.65s cubic-bezier(.22,1,.36,1) 0.12s both; }
+.anim-up-3 { animation: float-up 0.65s cubic-bezier(.22,1,.36,1) 0.24s both; }
+.anim-up-4 { animation: float-up 0.65s cubic-bezier(.22,1,.36,1) 0.36s both; }
+.anim-up-5 { animation: float-up 0.65s cubic-bezier(.22,1,.36,1) 0.48s both; }
+.badge-pop { animation: badge-pop 0.5s cubic-bezier(.22,1,.36,1) 0.7s both; }
