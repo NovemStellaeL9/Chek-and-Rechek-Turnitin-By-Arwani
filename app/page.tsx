@@ -6,6 +6,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 // CONSTANTS
 // ─────────────────────────────────────────────
 const WA_NUMBER = "6285967096912";
+const ADMIN_EMAIL = "arwanidgabriel@gmail.com"; // Email penerima file
 const ACCEPTED_TYPES = [
   "application/pdf",
   "application/msword",
@@ -13,7 +14,7 @@ const ACCEPTED_TYPES = [
   "text/plain",
 ];
 const ACCEPTED_EXT = [".pdf", ".doc", ".docx", ".txt"];
-const MAX_MB = 50;
+const MAX_MB = 20; // Disesuaikan ke 20MB agar aman untuk pengiriman lampiran Email
 
 const TICKER_ITEMS = [
   "✦ 100% No Repository",
@@ -79,23 +80,19 @@ function buildWaMessage(
   waUser: string,
   excludeBib: boolean,
   excludeQuote: boolean,
-  excludeMatch: boolean,
-  excludeSmall: boolean,
-  excludeInternet: boolean
+  excludeMatch: boolean
 ): string {
   const opts: string[] = [];
   if (excludeBib)      opts.push("Kecualikan Daftar Pustaka");
   if (excludeQuote)    opts.push("Kecualikan Kutipan");
   if (excludeMatch)    opts.push("Exclude Match");
-  if (excludeSmall)    opts.push("Exclude Small Matches (<10 kata)");
-  if (excludeInternet) opts.push("Exclude Internet Sources");
 
   const optsText = opts.length > 0 ? opts.join(", ") : "Tidak ada";
 
   return (
     `Halo Chek & Recheck Turnitin 👋\n\n` +
     `Saya ingin melakukan *Cek Plagiasi Turnitin*.\n\n` +
-    `📄 *File:* ${fileName}\n` +
+    `📄 *File:* ${fileName} (Sudah terkirim ke sistem)\n` +
     `📝 *Judul:* ${fileTitle || "(belum diisi)"}\n` +
     `📱 *No. WA Saya:* ${waUser || "(belum diisi)"}\n\n` +
     `⚙️ *Opsi Exclude:*\n${optsText}\n\n` +
@@ -116,9 +113,8 @@ export default function Home() {
   const [excludeBib, setExcludeBib] = useState(false);
   const [excludeQuote, setExcludeQuote] = useState(false);
   const [excludeMatch, setExcludeMatch] = useState(false);
-  const [excludeSmall, setExcludeSmall] = useState(false);
-  const [excludeInternet, setExcludeInternet] = useState(false);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -158,8 +154,8 @@ export default function Home() {
     if (e.target.files?.[0]) handleFile(e.target.files[0]);
   };
 
-  // ── Form submit ──
-  const handleSubmit = () => {
+  // ── Form submit (FormSubmit AJAX) ──
+  const handleSubmit = async () => {
     const errs: Record<string, string> = {};
     if (!file)          errs.file = "Pilih file terlebih dahulu.";
     if (!fileTitle.trim()) errs.fileTitle = "Judul file wajib diisi.";
@@ -170,18 +166,56 @@ export default function Home() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const msg = buildWaMessage(
-      file!.name, fileTitle, waUser,
-      excludeBib, excludeQuote, excludeMatch, excludeSmall, excludeInternet
-    );
-    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank");
-    setSubmitted(true);
+    setIsSubmitting(true);
+
+    const opts: string[] = [];
+    if (excludeBib) opts.push("Kecualikan Daftar Pustaka");
+    if (excludeQuote) opts.push("Kecualikan Kutipan");
+    if (excludeMatch) opts.push("Exclude Match");
+    const optsText = opts.length > 0 ? opts.join(", ") : "Tidak ada";
+
+    // Siapkan data untuk dikirim ke email
+    const formData = new FormData();
+    formData.append("Nama Pemesan", waUser);
+    formData.append("Judul File", fileTitle);
+    formData.append("Opsi Exclude", optsText);
+    formData.append("attachment", file!); // File dilampirkan
+    
+    // Konfigurasi FormSubmit
+    formData.append("_subject", `🔔 Order Turnitin Baru dari ${waUser}`);
+    formData.append("_captcha", "false"); 
+    formData.append("_template", "table");
+
+    try {
+      const response = await fetch(`https://formsubmit.co/ajax/${ADMIN_EMAIL}`, {
+        method: "POST",
+        body: formData,
+        headers: {
+            'Accept': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Jika email berhasil terkirim, arahkan user ke WhatsApp
+        const msg = buildWaMessage(file!.name, fileTitle, waUser, excludeBib, excludeQuote, excludeMatch);
+        window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank");
+        setSubmitted(true);
+      } else {
+        alert("Gagal mengirim file. Silakan coba lagi.");
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan jaringan. Gagal mengirim data.");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
     setFile(null); setFileTitle(""); setWaUser(""); setErrors({});
     setExcludeBib(false); setExcludeQuote(false); setExcludeMatch(false);
-    setExcludeSmall(false); setExcludeInternet(false);
     setSubmitted(false); setFileError("");
   };
 
@@ -342,8 +376,8 @@ export default function Home() {
                 fontSize: "1.4rem", marginBottom: "0.5rem",
               }}>Order Terkirim!</h2>
               <p style={{ color: "rgba(244,243,238,0.7)", fontSize: "0.88rem", lineHeight: 1.6, marginBottom: "1.5rem" }}>
-                WhatsApp sudah terbuka. Pastikan pesan sudah terkirim ke admin kami.<br />
-                Kami akan segera memproses dokumenmu.
+                Dokumenmu berhasil dikirimkan ke sistem kami.<br/><br/>
+                Silakan lanjut mengobrol dengan Admin di WhatsApp yang sudah terbuka secara otomatis.
               </p>
               <button
                 onClick={resetForm}
@@ -454,6 +488,7 @@ export default function Home() {
                           flexShrink: 0,
                         }}
                         aria-label="Hapus file"
+                        disabled={isSubmitting}
                       >✕</button>
                     </div>
                     <div style={{
@@ -491,12 +526,13 @@ export default function Home() {
                   placeholder="Contoh: Skripsi_Arwani_Bab1-5"
                   value={fileTitle}
                   onChange={e => { setFileTitle(e.target.value); setErrors(v => ({ ...v, fileTitle: "" })); }}
+                  disabled={isSubmitting}
                   style={{
                     width: "100%", padding: "0.85rem 1rem",
                     border: `1.5px solid ${errors.fileTitle ? "#e74c3c" : "var(--border-strong)"}`,
                     borderRadius: "12px", fontSize: "0.9rem",
                     fontFamily: "'DM Sans', sans-serif",
-                    background: "white", color: "var(--ink)",
+                    background: isSubmitting ? "#f5f5f5" : "white", color: "var(--ink)",
                     outline: "none", transition: "border-color 0.2s",
                   }}
                   onFocus={e => { e.target.style.borderColor = "var(--ink)"; }}
@@ -529,12 +565,13 @@ export default function Home() {
                     placeholder="Contoh: 08123456789"
                     value={waUser}
                     onChange={e => { setWaUser(e.target.value); setErrors(v => ({ ...v, waUser: "" })); }}
+                    disabled={isSubmitting}
                     style={{
                       width: "100%", padding: "0.85rem 1rem 0.85rem 2.6rem",
                       border: `1.5px solid ${errors.waUser ? "#e74c3c" : "var(--border-strong)"}`,
                       borderRadius: "12px", fontSize: "0.9rem",
                       fontFamily: "'DM Sans', sans-serif",
-                      background: "white", color: "var(--ink)",
+                      background: isSubmitting ? "#f5f5f5" : "white", color: "var(--ink)",
                       outline: "none", transition: "border-color 0.2s",
                     }}
                     onFocus={e => { e.target.style.borderColor = "var(--ink)"; }}
@@ -557,6 +594,8 @@ export default function Home() {
                 border: "1.5px solid var(--border-strong)",
                 borderRadius: "16px",
                 overflow: "hidden",
+                opacity: isSubmitting ? 0.6 : 1,
+                pointerEvents: isSubmitting ? "none" : "auto",
               }}>
                 <div style={{
                   padding: "0.85rem 1rem",
@@ -574,10 +613,8 @@ export default function Home() {
 
                 {[
                   { key: "bib",      state: excludeBib,      setter: setExcludeBib,      label: "Kecualikan Daftar Pustaka", sub: "Referensi & bibliografi tidak dihitung sebagai plagiasi" },
-                  { key: "quote",    state: excludeQuote,    setter: setExcludeQuote,    label: "Kecualikan Kutipan",         sub: "Kutipan langsung dalam tanda petik tidak dihitung" },
-                  { key: "match",    state: excludeMatch,    setter: setExcludeMatch,    label: "Exclude Match",              sub: "Exclude sumber yang sudah diketahui milik sendiri" },
-                  { key: "small",    state: excludeSmall,    setter: setExcludeSmall,    label: "Exclude Small Matches",      sub: "Abaikan kecocokan kurang dari 10 kata berturutan" },
-                  { key: "internet", state: excludeInternet, setter: setExcludeInternet, label: "Exclude Internet Sources",   sub: "Abaikan sumber dari website/internet tertentu" },
+                  { key: "quote",    state: excludeQuote,    setter: setExcludeQuote,    label: "Kecualikan Kutipan",        sub: "Kutipan langsung dalam tanda petik tidak dihitung" },
+                  { key: "match",    state: excludeMatch,    setter: setExcludeMatch,    label: "Exclude Match",             sub: "Exclude sumber yang sudah diketahui milik sendiri" },
                 ].map((opt, i, arr) => (
                   <label
                     key={opt.key}
@@ -634,9 +671,8 @@ export default function Home() {
                     fontSize: "0.75rem", color: "var(--ink)", marginBottom: "0.2rem",
                   }}>Catatan Penting</p>
                   <p style={{ fontSize: "0.72rem", color: "var(--muted)", lineHeight: 1.5 }}>
-                    File yang kamu upload hanya digunakan untuk keperluan cek plagiasi.
+                    File akan dikirim otomatis ke email kami dengan batas maksimal 20 MB.
                     Dokumen <strong>tidak akan disimpan</strong> di database Turnitin (No Repository).
-                    Harap siapkan nomor WA aktif untuk menerima hasil laporan.
                   </p>
                 </div>
               </div>
@@ -644,18 +680,19 @@ export default function Home() {
               {/* ── SUBMIT BUTTON ── */}
               <button
                 onClick={handleSubmit}
+                disabled={isSubmitting}
                 style={{
                   width: "100%",
                   padding: "1.05rem",
-                  background: "var(--ink)",
-                  color: "var(--accent)",
+                  background: isSubmitting ? "#333" : "var(--ink)",
+                  color: isSubmitting ? "#888" : "var(--accent)",
                   border: "none",
                   borderRadius: "14px",
                   fontFamily: "'Syne', sans-serif",
                   fontWeight: 800,
                   fontSize: "1rem",
                   letterSpacing: "0.03em",
-                  cursor: "pointer",
+                  cursor: isSubmitting ? "wait" : "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -664,19 +701,21 @@ export default function Home() {
                   position: "relative",
                   overflow: "hidden",
                 }}
-                onMouseDown={e => (e.currentTarget.style.transform = "scale(0.975)")}
-                onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseDown={e => { if (!isSubmitting) e.currentTarget.style.transform = "scale(0.975)" }}
+                onMouseUp={e => { if (!isSubmitting) e.currentTarget.style.transform = "scale(1)" }}
               >
-                <span style={{ fontSize: "1.1rem" }}>📤</span>
-                Kirim Order via WhatsApp
+                {isSubmitting ? (
+                  <>
+                    <span style={{ animation: "pulse-ring 1s infinite" }}>⏳</span>
+                    Sedang Mengirim File...
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: "1.1rem" }}>📤</span>
+                    Kirim Order & Lanjut WA
+                  </>
+                )}
               </button>
-
-              <p style={{
-                textAlign: "center", fontSize: "0.7rem",
-                color: "var(--muted)", marginTop: "-0.25rem",
-              }}>
-                Tombol di atas akan membuka WhatsApp dengan pesan otomatis yang sudah terisi.
-              </p>
 
             </div>
           )}
